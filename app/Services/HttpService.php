@@ -86,6 +86,9 @@ class HttpService
         $_POST = $request->post ?? [];
         $_COOKIE = $request->cookie ?? [];
         $_FILES = $request->files ?? [];
+        foreach ($request->server as $key => $value) {
+            $_SERVER[strtoupper($key)] = $value;
+        }
     }
 
     /**

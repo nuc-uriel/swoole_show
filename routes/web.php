@@ -12,5 +12,10 @@
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    var_dump(request()->all());
+//    return view('welcome');
+});
+
+Route::get('/test', function () {
+    return 123;
 });
