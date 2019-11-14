@@ -89,6 +89,9 @@ class HttpService
         foreach ($request->server as $key => $value) {
             $_SERVER[strtoupper($key)] = $value;
         }
+        foreach ($request->header as $key => $value) {
+            $_SERVER['HTTP_' . strtoupper($key)] = $value;
+        }
     }
 
     /**
