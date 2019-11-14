@@ -136,6 +136,7 @@ class HttpService
         require __DIR__ . '/../../vendor/autoload.php';
         $app = require __DIR__ . '/../../bootstrap/app.php';
         $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
+        \Illuminate\Http\Request::enableHttpMethodParameterOverride();
         $response = $kernel->handle(
             $request = \Illuminate\Http\Request::createFromBase($this->createFromGlobals($req))
         );
