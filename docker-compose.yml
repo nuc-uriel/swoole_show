@@ -8,11 +8,11 @@ services:
       dockerfile: app.dockerfile
     working_dir: /var/www/html
     volumes:
-      - ~/www/show:/var/www/html
+      - ~/www/swoole_show:/var/www/html
     ports:
       - 80:80
       - 8888:8888
-    command: composer install --no-progress --no-interaction --ansi --ignore-platform-reqs
+#    command: composer install --no-progress --no-interaction --ansi --ignore-platform-reqs
     networks:
       - mynet
 
