@@ -12,10 +12,9 @@
 */
 
 Route::get('/', function () {
+    echo "<pre>";
     var_dump(request()->all());
 //    return view('welcome');
 });
 
-Route::get('/test', function () {
-    return 123;
-});
+Route::get('/index', "IndexController@index");

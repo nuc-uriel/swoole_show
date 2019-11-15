@@ -5,16 +5,21 @@ namespace App\Services;
 
 
 use Swoole\Http\Server;
+use swoole_http_server;
+use swoole_server;
 
 class HttpService
 {
     private $http = null;
     private $conf = array(
         'enable_static_handler' => true,
-        'document_root' => __DIR__ . '/../../public'
+        'document_root' => __DIR__ . '/../../public',
+        'worker_num' => 5
+
     );
     private $host = '0.0.0.0';
     private $port = '80';
+    private $app;
 
     /**
      * @param string $host
@@ -41,7 +46,7 @@ class HttpService
      */
     public function init(): self
     {
-        $this->http = new Server($this->host, $this->port);
+        $this->http = new swoole_http_server($this->host, $this->port);
         $this->http->set($this->conf);
         return $this;
     }
@@ -64,17 +69,18 @@ class HttpService
      */
     public function onRequest($req, $res)
     {
-        !defined('LARAVEL_START') && define('LARAVEL_START', microtime(true));
-        require __DIR__ . '/../../vendor/autoload.php';
-        $app = require __DIR__ . '/../../bootstrap/app.php';
-        (new \Illuminate\Foundation\Bootstrap\LoadConfiguration)->bootstrap($app);
         $this->initRequest($req);
-        $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel = $this->app->make(\Illuminate\Contracts\Http\Kernel::class);
+        ob_start();
         $response = $kernel->handle(
             $request = \Illuminate\Http\Request::capture()
         );
-        $this->send($response, $res);
+        $response->send();
+        $content = ob_get_contents();
+        ob_end_clean();
         $kernel->terminate($request, $response);
+        $res->end($content);
+
     }
 
     /**
@@ -95,18 +101,15 @@ class HttpService
     }
 
     /**
-     * @param $response
-     * @param $res
+     * @param swoole_server $server
+     * @param int $worker_id
      */
-    private function send($response, $res)
+    public function onWorkerStart(swoole_server $server, int $worker_id)
     {
-        $response->sendHeaders();
-        $res->end($response->getContent());
-        if (\function_exists('fastcgi_finish_request')) {
-            fastcgi_finish_request();
-        } elseif (!\in_array(\PHP_SAPI, ['cli', 'phpdbg'], true)) {
-            \Symfony\Component\HttpFoundation\Response::closeOutputBuffers(0, true);
-        }
+        define('LARAVEL_START', microtime(true));
+        require __DIR__ . '/../../vendor/autoload.php';
+        $this->app = require_once __DIR__ . '/../../bootstrap/app.php';
+//        (new \Illuminate\Foundation\Bootstrap\LoadConfiguration)->bootstrap($this->app);
     }
 
     /**
@@ -115,6 +118,7 @@ class HttpService
     public function start()
     {
         $this->http->on("Request", array($this, 'onRequest'));
+        $this->http->on("WorkerStart", array($this, 'onWorkerStart'));
         $this->http->start();
         return $this;
     }
