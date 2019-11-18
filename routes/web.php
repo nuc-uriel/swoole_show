@@ -12,9 +12,11 @@
 */
 
 Route::get('/', function () {
-    echo "<pre>";
-    var_dump(request()->all());
-//    return view('welcome');
+    return view('welcome');
 });
 
 Route::get('/index', "IndexController@index");
+
+Route::post('/update', "IndexController@update");
+Route::get('/show', "IndexController@show");
+Route::get('/download', "IndexController@download");
