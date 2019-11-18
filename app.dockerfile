@@ -66,4 +66,6 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
 
 # 设置为中国时区
-RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    cp /usr/local/etc/php/php.ini-development /usr/local/etc/php/php.ini && \
+    sed -i 's/^;date\.timezone.*/date.timezone = PRC/g' /usr/local/etc/php/php.ini
