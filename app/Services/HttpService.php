@@ -4,7 +4,6 @@
 namespace App\Services;
 
 
-use Swoole\Http\Server;
 use swoole_http_server;
 use swoole_server;
 
@@ -78,6 +77,7 @@ class HttpService
         $response->send();
         $content = ob_get_contents();
         ob_end_clean();
+        $this->initResponse($response, $res);
         $kernel->terminate($request, $response);
         $res->end($content);
 
@@ -97,6 +97,33 @@ class HttpService
         }
         foreach ($request->header as $key => $value) {
             $_SERVER['HTTP_' . strtoupper($key)] = $value;
+        }
+        // 设置调试组件
+        $_SERVER['VAR_DUMPER_FORMAT'] = 'html';
+    }
+
+    /**
+     * @param $response
+     * @param $res
+     */
+    private function initResponse($response, &$res)
+    {
+        // 添加header头
+        $headers = $response->headers->allPreserveCaseWithoutCookies();
+        foreach ($headers as $key=>$value){
+            $res->header($key, $value[0]);
+        }
+        // 添加cookie
+        $cookies = $response->headers->getCookies();
+        foreach ($cookies as $cookie){
+            $res->cookie($cookie->getName(),
+                        $cookie->getValue() ?? '',
+                        $cookie->getExpiresTime(),
+                        $cookie->getPath(),
+                        $cookie->getDomain() ?? '',
+                        $cookie->isSecure(),
+                        $cookie->isHttpOnly(),
+                        $cookie->getSameSite() ?? '');
         }
     }
 
