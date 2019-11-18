@@ -145,7 +145,23 @@ class HttpService
         if ($worker_id == 0) {
             // 设置热更新目录
             $this->notify = inotify_init();
-            inotify_add_watch($this->notify, app_path("../"), IN_CREATE | IN_DELETE | IN_MODIFY);
+            // 排除目录
+            $except = [
+                '.',
+                '..',
+                'vendor',
+                'storage'
+            ];
+            $add_watch = function ($dir) use(&$add_watch, $except) {
+                inotify_add_watch($this->notify, $dir, IN_CREATE | IN_DELETE | IN_MODIFY);
+                $list = scandir($dir);
+                foreach ($list as $sub_dir){
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $sub_dir) && !in_array($sub_dir, $except)){
+                        $add_watch($dir . DIRECTORY_SEPARATOR . $sub_dir);
+                    }
+                }
+            };
+            $add_watch(base_path());
             swoole_event_add($this->notify, function () use ($server) {
                 $events = inotify_read($this->notify);
                 if (!empty($events)) {
