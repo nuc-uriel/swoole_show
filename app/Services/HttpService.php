@@ -6,6 +6,7 @@ namespace App\Services;
 
 use swoole_http_server;
 use swoole_server;
+use Symfony\Component\VarDumper\VarDumper;
 
 class HttpService
 {
@@ -104,6 +105,7 @@ class HttpService
             $_SERVER['HTTP_' . strtoupper($key)] = $value;
         }
         // 设置调试组件
+        VarDumper::setHandler();
         $_SERVER['VAR_DUMPER_FORMAT'] = 'html';
     }
 
