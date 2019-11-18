@@ -64,3 +64,6 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 # 更换composer镜像
 RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
+
+# 设置为中国时区
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
