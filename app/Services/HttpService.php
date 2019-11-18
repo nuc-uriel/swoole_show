@@ -13,12 +13,17 @@ class HttpService
     private $conf = array(
         'enable_static_handler' => true,
         'document_root' => __DIR__ . '/../../public',
-        'worker_num' => 5
+        'worker_num' => 5,
+        'reload_async' => true  // 开启异步重启
 
     );
     private $host = '0.0.0.0';
     private $port = '80';
     private $app;
+    /**
+     * @var resource
+     */
+    private $notify;
 
     /**
      * @param string $host
@@ -110,20 +115,20 @@ class HttpService
     {
         // 添加header头
         $headers = $response->headers->allPreserveCaseWithoutCookies();
-        foreach ($headers as $key=>$value){
+        foreach ($headers as $key => $value) {
             $res->header($key, $value[0]);
         }
         // 添加cookie
         $cookies = $response->headers->getCookies();
-        foreach ($cookies as $cookie){
+        foreach ($cookies as $cookie) {
             $res->cookie($cookie->getName(),
-                        $cookie->getValue() ?? '',
-                        $cookie->getExpiresTime(),
-                        $cookie->getPath(),
-                        $cookie->getDomain() ?? '',
-                        $cookie->isSecure(),
-                        $cookie->isHttpOnly(),
-                        $cookie->getSameSite() ?? '');
+                $cookie->getValue() ?? '',
+                $cookie->getExpiresTime(),
+                $cookie->getPath(),
+                $cookie->getDomain() ?? '',
+                $cookie->isSecure(),
+                $cookie->isHttpOnly(),
+                $cookie->getSameSite() ?? '');
         }
     }
 
@@ -137,6 +142,23 @@ class HttpService
         require __DIR__ . '/../../vendor/autoload.php';
         $this->app = require_once __DIR__ . '/../../bootstrap/app.php';
 //        (new \Illuminate\Foundation\Bootstrap\LoadConfiguration)->bootstrap($this->app);
+        if ($worker_id == 0) {
+            // 设置热更新目录
+            $this->notify = inotify_init();
+            inotify_add_watch($this->notify, app_path("../"), IN_CREATE | IN_DELETE | IN_MODIFY);
+            swoole_event_add($this->notify, function () use ($server) {
+                $events = inotify_read($this->notify);
+                if (!empty($events)) {
+                    // 执行swolle reload
+                    $server->reload();
+                }
+            });
+        }
+    }
+
+    public function onWorkerExit($server, $worker_id)
+    {
+        swoole_event_del($this->notify);
     }
 
     /**
@@ -146,6 +168,7 @@ class HttpService
     {
         $this->http->on("Request", array($this, 'onRequest'));
         $this->http->on("WorkerStart", array($this, 'onWorkerStart'));
+        $this->http->on("WorkerExit", array($this, 'onWorkerExit'));
         $this->http->start();
         return $this;
     }

@@ -10,7 +10,9 @@ RUN apt-get update && \
     apt-get clean
 
 # 安装PHP扩展
-RUN docker-php-ext-install pdo pdo_mysql mcrypt zip gd pcntl opcache bcmath
+RUN docker-php-ext-install pdo pdo_mysql mcrypt zip gd pcntl opcache bcmath && \
+pecl install inotify && \
+docker-php-ext-enable inotify
 
 # 拉取swoole源码
 RUN git clone https://gitee.com/swoole/swoole.git
