@@ -71,9 +71,13 @@ class HttpService
     /**
      * @param $req
      * @param $res
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
     public function onRequest($req, $res)
     {
+        if(require_once __DIR__ . '/../../bootstrap/app.php') {
+            $this->app = app();
+        }
         $this->initRequest($req);
         $kernel = $this->app->make(\Illuminate\Contracts\Http\Kernel::class);
         ob_start();
@@ -142,8 +146,6 @@ class HttpService
     {
         define('LARAVEL_START', microtime(true));
         require __DIR__ . '/../../vendor/autoload.php';
-        $this->app = require_once __DIR__ . '/../../bootstrap/app.php';
-//        (new \Illuminate\Foundation\Bootstrap\LoadConfiguration)->bootstrap($this->app);
         if ($worker_id == 0) {
             // 设置热更新目录
             $this->notify = inotify_init();
@@ -165,11 +167,10 @@ class HttpService
                     }
                 }
             };
-            $add_watch(base_path());
+            $add_watch(realpath ('../..'));
             swoole_event_add($this->notify, function () use ($server) {
                 $events = inotify_read($this->notify);
                 if (!empty($events)) {
-                    // 执行swolle reload
                     $server->reload();
                 }
             });
