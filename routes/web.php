@@ -20,3 +20,7 @@ Route::get('/index', "IndexController@index");
 Route::post('/update', "IndexController@update");
 Route::get('/show', "IndexController@show");
 Route::get('/download', "IndexController@download");
+
+Auth::routes();
+
+Route::get('/home', 'HomeController@index')->name('home');

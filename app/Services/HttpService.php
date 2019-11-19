@@ -152,7 +152,9 @@ class HttpService
                 '.',
                 '..',
                 'vendor',
-                'storage'
+                'storage',
+                'node_modules',
+                '.idea'
             ];
             $add_watch = function ($dir) use(&$add_watch, $except) {
                 inotify_add_watch($this->notify, $dir, IN_CREATE | IN_DELETE | IN_MODIFY);
