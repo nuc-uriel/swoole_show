@@ -32,6 +32,15 @@ services:
     networks:
       - mynet
 
+  redis:
+    image: redis
+    env_file:
+      - ./.env
+    expose:
+      - "${REDIS_PORT}"
+    networks:
+      - mynet
+
 volumes:
   dbdata:
 

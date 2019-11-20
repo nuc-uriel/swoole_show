@@ -4,23 +4,21 @@
 namespace App\Services;
 
 
-use Illuminate\Support\Facades\Auth;
+use Str;
 use swoole_http_server;
 use swoole_server;
 use Symfony\Component\VarDumper\VarDumper;
+use Redis;
 
-class HttpService
+class WebSocketService
 {
     private $http = null;
     private $conf = array(
-        'enable_static_handler' => true,
-        'document_root' => __DIR__ . '/../../public',
         'worker_num' => 5,
-        'reload_async' => true  // 开启异步重启
 
     );
     private $host = '0.0.0.0';
-    private $port = '80';
+    private $port = '8888';
     private $app;
     /**
      * @var resource
@@ -62,7 +60,7 @@ class HttpService
      * @return $this
      *
      */
-    public function httpConf(array $set): self
+    public function setConf(array $set): self
     {
         $this->conf = array_merge($this->conf, $set);
         $this->http->set($this->conf);
@@ -74,10 +72,13 @@ class HttpService
      * @param $res
      * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
-    public function onRequest($req, $res)
+    public function onOpen($req, $res)
     {
+        if (require_once __DIR__ . '/../../bootstrap/app.php') {
+            $this->app = app();
+        }
         $this->initRequest($req);
-        $kernel = app()->make(\Illuminate\Contracts\Http\Kernel::class);
+        $kernel = $this->app->make(\Illuminate\Contracts\Http\Kernel::class);
         ob_start();
         $response = $kernel->handle(
             $request = \Illuminate\Http\Request::capture()
@@ -88,6 +89,7 @@ class HttpService
         $this->initResponse($response, $res);
         $kernel->terminate($request, $response);
         $res->end($content);
+
     }
 
     /**
@@ -141,9 +143,8 @@ class HttpService
      */
     public function onWorkerStart(swoole_server $server, int $worker_id)
     {
+        define('LARAVEL_START', microtime(true));
         require __DIR__ . '/../../vendor/autoload.php';
-        require_once __DIR__ . '/../../bootstrap/app.php';
-//        define('LARAVEL_START', microtime(true));
         if ($worker_id == 0) {
             // 设置热更新目录
             $this->notify = inotify_init();
@@ -156,16 +157,16 @@ class HttpService
                 'node_modules',
                 '.idea'
             ];
-            $add_watch = function ($dir) use(&$add_watch, $except) {
+            $add_watch = function ($dir) use (&$add_watch, $except) {
                 inotify_add_watch($this->notify, $dir, IN_CREATE | IN_DELETE | IN_MODIFY);
                 $list = scandir($dir);
-                foreach ($list as $sub_dir){
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $sub_dir) && !in_array($sub_dir, $except)){
+                foreach ($list as $sub_dir) {
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $sub_dir) && !in_array($sub_dir, $except)) {
                         $add_watch($dir . DIRECTORY_SEPARATOR . $sub_dir);
                     }
                 }
             };
-            $add_watch(realpath ('../..'));
+            $add_watch(realpath('../..'));
             swoole_event_add($this->notify, function () use ($server) {
                 $events = inotify_read($this->notify);
                 if (!empty($events)) {
@@ -190,5 +191,33 @@ class HttpService
         $this->http->on("WorkerExit", array($this, 'onWorkerExit'));
         $this->http->start();
         return $this;
+    }
+
+    public function addKey($userId)
+    {
+        $token = hash('sha256', Str::random(60));
+        if (Redis::get('u2t:' . $userId)) {
+            Redis::del(Redis::get('u2t:' . $userId));
+        }
+        Redis::setex('u2t:' . $userId, config('session.lifetime', 120) * 60, $token);
+        Redis::setex('t2u:' . $token, config('session.lifetime', 120) * 60, $userId);
+    }
+
+    public function removeKey($keyword)
+    {
+        Redis::del(['t2u:' . Redis::get('u2t:' . $keyword) ?? '',
+            'u2t:' . Redis::get('t2u:' . $keyword) ?? '',
+            'u2t:' . $keyword,
+            't2u:' . $keyword]);
+    }
+
+    public function getUser($token)
+    {
+        return Redis::get('t2u:' . $token);
+    }
+
+    public function getTokens($userId)
+    {
+        return Redis::get('u2t:' . $userId);
     }
 }
