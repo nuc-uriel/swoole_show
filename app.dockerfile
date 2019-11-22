@@ -1,18 +1,18 @@
-FROM php:7.1.22-fpm
+FROM php:7.2.0-fpm
 
 # 添加阿里云镜像
-RUN sed -i s/deb.debian.org/mirrors.aliyun.com/g /etc/apt/sources.list && \
-    sed -i s/security.debian.org/mirrors.aliyun.com/g /etc/apt/sources.list
+# RUN sed -i s/deb.debian.org/mirrors.aliyun.com/g /etc/apt/sources.list && \
+#     sed -i s/security.debian.org/mirrors.aliyun.com/g /etc/apt/sources.list
 
 # 更新、安装、清除包
 RUN apt-get update && \
-    apt-get install -y git curl libmcrypt-dev libjpeg-dev libpng-dev libfreetype6-dev libbz2-dev && \
+    apt-get install -y git curl libmcrypt-dev libjpeg-dev libpng-dev libfreetype6-dev libbz2-dev openssl libhiredis-dev && \
     apt-get clean
 
 # 安装PHP扩展
-RUN docker-php-ext-install pdo pdo_mysql mcrypt zip gd pcntl opcache bcmath && \
-pecl install inotify && \
-docker-php-ext-enable inotify
+RUN docker-php-ext-install pdo pdo_mysql  zip gd pcntl opcache bcmath sockets && \
+pecl install inotify mcrypt redis && \
+docker-php-ext-enable inotify mcrypt redis
 
 # 拉取swoole源码
 RUN git clone https://gitee.com/swoole/swoole.git
@@ -42,22 +42,9 @@ RUN phpize && \
 
 WORKDIR /var/www/html/
 
-# 拉取hiredis源码
-RUN git clone https://github.com/redis/hiredis.git
-
-WORKDIR ./hiredis
-
-# 安装hiredis
-RUN make && \
-    make install && \
-    ldconfig
-
-WORKDIR /var/www/html/
-
 # 删除swoole源码
 RUN rm -R swoole && \
-    rm -R ext-async && \
-    rm -R hiredis
+    rm -R ext-async
 
 # 添加composer
 COPY --from=composer /usr/bin/composer /usr/bin/composer
@@ -66,6 +53,4 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 RUN composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
 
 # 设置为中国时区
-RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    cp /usr/local/etc/php/php.ini-development /usr/local/etc/php/php.ini && \
-    sed -i 's/^;date\.timezone.*/date.timezone = PRC/g' /usr/local/etc/php/php.ini
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime

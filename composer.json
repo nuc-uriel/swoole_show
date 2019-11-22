@@ -8,7 +8,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^7.2",
+        "php": "^7.1",
         "ext-inotify": "*",
         "ext-redis": "*",
         "fideloper/proxy": "^4.0",
